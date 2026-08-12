@@ -1,0 +1,12 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+logs
+configs
+storage
+backup.zip
+.env
+.env.*
+README.md
+DEPLOY.md

@@ -9,6 +9,7 @@ import sys
 import json
 import os
 from cardinal import Cardinal
+from healthcheck import start_healthcheck
 import Utils.exceptions as excs
 
 
@@ -42,6 +43,9 @@ logging.config.dictConfig(LOGGER_CONFIG)
 logging.raiseExceptions = False
 logger = logging.getLogger("main")
 logger.debug("-------------------Новый запуск.-------------------")
+
+# Healthcheck-сервер (для Render / Railway / Docker). Порт из env PORT.
+start_healthcheck()
 
 
 print(logo)
