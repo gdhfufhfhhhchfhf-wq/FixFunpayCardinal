@@ -1219,6 +1219,58 @@ class Account:
         else:
             raise exceptions.RaiseError(response, category, json_response.get("msg"), wait_time)
 
+    def raise_subcategories(self, category_id: int, subcategory_id: int) -> types.RaiseResponse:
+        """
+        Поднимает лоты одной подкатегории переданной категории (игры).
+
+        Возвращает объект :class:`FunPayAPI.types.RaiseResponse` с информацией о результате
+        поднятия. Не возбуждает исключений при обычном отказе FunPay (например, когда нужно
+        подождать) — эта информация помещается в поле ``wait`` результата.
+
+        :param category_id: ID категории (игры).
+        :type category_id: :obj:`int`
+
+        :param subcategory_id: ID подкатегории.
+        :type subcategory_id: :obj:`int`
+
+        :return: объект результата поднятия лотов.
+        :rtype: :class:`FunPayAPI.types.RaiseResponse`
+        """
+        if not self.is_initiated:
+            raise exceptions.AccountNotInitiatedError()
+        if not (category := self.get_category(category_id)):
+            raise Exception("Not Found")  # todo
+        if not (subcategory := category.get_subcategory(enums.SubCategoryTypes.COMMON, subcategory_id)):
+            raise Exception("Not Found")  # todo
+
+        headers = {
+            "accept": "*/*",
+            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "x-requested-with": "XMLHttpRequest"
+        }
+        payload = {
+            "game_id": category_id,
+            "node_id": subcategory_id
+        }
+
+        response = self.method("post", "lots/raise", headers, payload, raise_not_200=True)
+        json_response = response.json()
+        logger.debug(f"Ответ FunPay (поднятие подкатегорий): {json_response}.")  # locale
+        wait_time = json_response.get("wait")
+        raised_subcategories = [subcategory]
+
+        if not json_response.get("error") and not json_response.get("url"):
+            return types.RaiseResponse(True, raised_subcategories, wait_time or 3600, json_response)
+        elif json_response.get("url"):
+            return types.RaiseResponse(False, raised_subcategories, wait_time or 7200, json_response)
+        elif json_response.get("error") and json_response.get("msg") and \
+                any([i in json_response.get("msg") for i in ("Подождите ", "Please wait ", "Зачекайте ")]):
+            return types.RaiseResponse(False, raised_subcategories,
+                                       wait_time or utils.parse_wait_time(json_response.get("msg")),
+                                       json_response)
+        else:
+            return types.RaiseResponse(False, raised_subcategories, wait_time or 3600, json_response)
+
     def get_user(self, user_id: int, locale: Literal["ru", "en", "uk"] | None = None) -> types.UserProfile:
         """
         Парсит страницу пользователя.

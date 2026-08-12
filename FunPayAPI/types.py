@@ -1576,3 +1576,21 @@ class Wallet:
         self.data_n: int | None = data_n
 
 
+class RaiseResponse:
+    """
+    Класс, описывающий результат поднятия лотов подкатегорий.
+    Используется хэндлерами, привязанными к поднятию лотов (BIND_TO_POST_LOTS_RAISE).
+    """
+
+    def __init__(self, complete: bool, raised_subcategories: list[SubCategory], wait: int,
+                 funpay_response: dict):
+        self.complete: bool = complete
+        """Успешно ли подняты лоты переданных подкатегорий?"""
+        self.raised_subcategories: list[SubCategory] = raised_subcategories
+        """Список подкатегорий, лоты которых были подняты."""
+        self.wait: int = wait
+        """Через сколько секунд можно повторно поднимать лоты."""
+        self.funpay_response: dict = funpay_response
+        """Исходный ответ FunPay."""
+
+
