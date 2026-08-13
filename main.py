@@ -106,8 +106,9 @@ diag_state.STATE["stage"] = "config_loaded"
 
 while True:
     try:
-        diag_state.STATE["stage"] = "before_cardinal_init"
+        diag_state.STATE["stage"] = "before_cardinal_ctor"
         cardinal = Cardinal(MAIN_CFG, AD_CFG, AR_CFG, RAW_AR_CFG, VERSION)
+        diag_state.STATE["stage"] = "after_cardinal_ctor"
         cardinal.init()
         diag_state.STATE["stage"] = "after_cardinal_init"
         diag_state.STATE["cardinal_init"] = "ok"
