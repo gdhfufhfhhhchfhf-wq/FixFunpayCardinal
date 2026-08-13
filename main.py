@@ -163,6 +163,11 @@ while True:
         diag_state.STATE["stage"] = "after_cardinal_init"
         diag_state.STATE["cardinal_init"] = "ok"
         try:
+            threading.Thread(target=cardinal.runner.loop, daemon=True, name="runner-worker").start()
+            diag_state.STATE["runner_thread"] = "started"
+        except Exception as e:
+            diag_state.STATE["runner_thread"] = f"error: {e}"
+        try:
             tg = cardinal.MAIN_CFG["Telegram"]
             diag_state.STATE["tg_enabled"] = str(tg.getboolean("enabled"))
             diag_state.STATE["tg_token_present"] = str(bool(tg.get("token")))

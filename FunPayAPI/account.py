@@ -155,7 +155,7 @@ class Account:
 
 
     def method(self, request_method: Literal["post", "get"], api_method: str, headers: dict, payload: Any,
-               exclude_phpsessid: bool = False, raise_not_200: bool = False,
+               exclude_phpsessid: bool = False, exclude_golden_key: bool = False, raise_not_200: bool = False,
                locale: Literal["ru", "en", "uk"] | None = None) -> requests.Response:
         """
         Отправляет запрос к FunPay. Добавляет в заголовки запроса user_agent и куки.
@@ -196,8 +196,10 @@ class Account:
                 cookies["PHPSESSID"] = self.phpsessid
             link = self.normalize_url(api_method, locale)
         else:
-            cookies = {"golden_key": self.golden_key,
-                       "cookie_prefs": "1"}
+            cookies = {}
+            if not exclude_golden_key:
+                cookies["golden_key"] = self.golden_key
+            cookies["cookie_prefs"] = "1"
             cookies.update(self.cookies)
             if self.phpsessid and not exclude_phpsessid:
                 cookies["PHPSESSID"] = self.phpsessid
@@ -314,7 +316,7 @@ class Account:
         payload["csrf_token"] = self.csrf_token
         payload["objects"] = json.dumps(payload.get("objects", []))
         payload["request"] = False if not payload.get("request") else json.dumps(payload["request"])
-        response = self.method("post", "runner/", headers, payload, raise_not_200=True)
+        response = self.method("post", "runner/", headers, payload, raise_not_200=True, exclude_golden_key=True)
 
         return response
 
