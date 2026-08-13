@@ -514,9 +514,14 @@ class Cardinal(object):
             self.telegram.setup_commands()
             Thread(target=self.telegram.run, daemon=True).start()
 
+        import diag_state
+        diag_state.STATE["stage"] = "init:account"
         self.__init_account()
+        diag_state.STATE["stage"] = "init:runner"
         self.runner = FunPayAPI.Runner(self.account)
+        diag_state.STATE["stage"] = "init:profile"
         self.__update_profile()
+        diag_state.STATE["stage"] = "init:done"
         self.run_handlers(self.post_init_handlers, (self, ))
         return self
 

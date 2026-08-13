@@ -218,7 +218,7 @@ class Account:
                   "cookies": cookies}
         i = 0
         response = None
-        while i < 10 or response.status_code == 429:
+        while i < 10:
             i += 1
             response = self.session.request(url=link, data=payload, allow_redirects=False, **kwargs)
             self.__update_cookies(response)
