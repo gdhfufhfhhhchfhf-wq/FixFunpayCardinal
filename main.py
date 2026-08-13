@@ -11,6 +11,22 @@ import os
 import threading
 import time
 import urllib.request
+import requests
+
+# FunPayAPI выполняет HTTP-запросы без таймаута, из-за чего init() может
+# зависнуть бесконечно, если FunPay временно не отвечает. Добавляем
+# таймаут по умолчанию ко всем запросам в процессе.
+_ORIGINAL_SESSION_REQUEST = requests.Session.request
+
+
+def _session_request_with_timeout(self, *args, **kwargs):
+    if "timeout" not in kwargs:
+        kwargs["timeout"] = 60
+    return _ORIGINAL_SESSION_REQUEST(self, *args, **kwargs)
+
+
+requests.Session.request = _session_request_with_timeout
+
 from cardinal import Cardinal
 from healthcheck import start_healthcheck
 import diag_state
