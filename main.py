@@ -31,6 +31,20 @@ from cardinal import Cardinal
 from healthcheck import start_healthcheck
 import diag_state
 import Utils.exceptions as excs
+import sys
+import threading
+import traceback
+
+
+def _record_exc(et, ev, tb):
+    try:
+        diag_state.STATE["last_error"] = "".join(traceback.format_exception(et, ev, tb))[-1200:]
+    except Exception:
+        pass
+
+
+sys.excepthook = _record_exc
+threading.excepthook = lambda args: _record_exc(args.exc_type, args.exc_value, args.exc_traceback)
 
 
 logo = "XDDDDDDDDDDDDDDDDDDDDDDD"

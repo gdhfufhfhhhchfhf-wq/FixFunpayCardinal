@@ -61,7 +61,8 @@ class HealthHandler(BaseHTTPRequestHandler):
                 state = dict(diag_state.STATE)
             except Exception:
                 state = {}
-            body = ("funpay=%s diag=%s" % (funpay_status(), state)).encode()
+            last_error = state.get("last_error", "")
+            body = ("funpay=%s diag=%s last_error=%s" % (funpay_status(), state, last_error)).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/plain")
             self.end_headers()
