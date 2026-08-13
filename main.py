@@ -88,7 +88,8 @@ diag_state.STATE["stage"] = "healthcheck_started"
 def _keep_alive_loop():
     port = int(os.getenv("PORT", "8080"))
     url = "http://127.0.0.1:{0}/health".format(port)
-    while True:
+start_healthcheck()
+while True:
         time.sleep(300)
         try:
             urllib.request.urlopen(url, timeout=5)
