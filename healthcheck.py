@@ -8,6 +8,7 @@ import os
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import diag_state
 
 
 _fp_cache = {"status": "unknown", "ts": 0.0}
@@ -43,8 +44,7 @@ def funpay_status() -> str:
 
 def cardinal_init_status() -> str:
     try:
-        with open(os.path.join(os.path.dirname(__file__), "fp_init_status"), encoding="utf-8") as f:
-            return f.read()[:500]
+        return diag_state.STATE.get("cardinal_init", "unknown")[:500]
     except Exception:
         return "unknown"
 

@@ -13,6 +13,7 @@ import time
 import urllib.request
 from cardinal import Cardinal
 from healthcheck import start_healthcheck
+import diag_state
 import Utils.exceptions as excs
 
 
@@ -100,25 +101,17 @@ except:
     sys.exit()
 
 
-def _write_init_status(text: str) -> None:
-    try:
-        with open("fp_init_status", "w", encoding="utf-8") as f:
-            f.write(text)
-    except Exception:
-        pass
-
-
 while True:
     try:
         cardinal = Cardinal(MAIN_CFG, AD_CFG, AR_CFG, RAW_AR_CFG, VERSION)
         cardinal.init()
-        _write_init_status("ok")
+        diag_state.STATE["cardinal_init"] = "ok"
         cardinal.run()
     except KeyboardInterrupt:
         logger.info("Завершаю программу...")
         sys.exit()
     except Exception:
-        _write_init_status("error:" + repr(__import__("traceback").format_exc()))
+        diag_state.STATE["cardinal_init"] = "error:" + repr(__import__("traceback").format_exc())
         logger.critical("При работе Кардинала произошла необработанная ошибка. Перезапускаю через 5 секунд...")
         logger.debug("TRACEBACK", exc_info=True)
         time.sleep(5)
