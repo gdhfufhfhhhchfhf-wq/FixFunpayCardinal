@@ -100,13 +100,25 @@ except:
     sys.exit()
 
 
+def _write_init_status(text: str) -> None:
+    try:
+        with open("storage/.fp_init_status", "w", encoding="utf-8") as f:
+            f.write(text)
+    except Exception:
+        pass
+
+
 while True:
     try:
-        Cardinal(MAIN_CFG, AD_CFG, AR_CFG, RAW_AR_CFG, VERSION).init().run()
+        cardinal = Cardinal(MAIN_CFG, AD_CFG, AR_CFG, RAW_AR_CFG, VERSION)
+        cardinal.init()
+        _write_init_status("ok")
+        cardinal.run()
     except KeyboardInterrupt:
         logger.info("Завершаю программу...")
         sys.exit()
     except Exception:
+        _write_init_status("error:" + repr(__import__("traceback").format_exc()))
         logger.critical("При работе Кардинала произошла необработанная ошибка. Перезапускаю через 5 секунд...")
         logger.debug("TRACEBACK", exc_info=True)
         time.sleep(5)

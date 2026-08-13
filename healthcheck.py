@@ -41,6 +41,14 @@ def funpay_status() -> str:
         return st
 
 
+def cardinal_init_status() -> str:
+    try:
+        with open(os.path.join(os.path.dirname(__file__), "storage", ".fp_init_status"), encoding="utf-8") as f:
+            return f.read()[:500]
+    except Exception:
+        return "unknown"
+
+
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/health":
@@ -49,7 +57,7 @@ class HealthHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"OK")
         elif self.path == "/diag":
-            body = ("funpay=%s" % funpay_status()).encode()
+            body = ("funpay=%s cardinal_init=%s" % (funpay_status(), cardinal_init_status())).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/plain")
             self.end_headers()
