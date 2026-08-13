@@ -22,10 +22,11 @@ def _check_funpay() -> str:
     try:
         from FunPayAPI import Account
         acc = Account(golden_key=gk)
-        acc.get()
-        return "connected:%s" % acc.username
+        r = acc.get()
+        s = str(r)
+        return "connected len=%d preview=%s" % (len(s), s[:120].replace("\n", " ").replace("\r", " "))
     except Exception as e:  # noqa: BLE001
-        return "error:%s:%s" % (type(e).__name__, e)
+        return "error:%s:%s" % (type(e).__name__, str(e)[:200])
 
 
 def funpay_status() -> str:
@@ -61,8 +62,14 @@ class HealthHandler(BaseHTTPRequestHandler):
                 state = dict(diag_state.STATE)
             except Exception:
                 state = {}
+            env_diag = {
+                "gk_len": len(os.getenv("FUNPAY_GOLDEN_KEY", "")),
+                "tg_token_len": len(os.getenv("TG_BOT_TOKEN", "")),
+                "tg_secret_len": len(os.getenv("TG_SECRET_KEY", "")),
+                "proxy_set": bool(os.getenv("FUNPAY_PROXY") or os.getenv("HTTP_PROXY")),
+            }
             last_error = state.get("last_error", "")
-            body = ("funpay=%s diag=%s last_error=%s" % (funpay_status(), state, last_error)).encode()
+            body = ("funpay=%s env=%s diag=%s last_error=%s" % (funpay_status(), env_diag, state, last_error)).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/plain")
             self.end_headers()
