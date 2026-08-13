@@ -147,7 +147,7 @@ while True:
             diag_state.STATE["tg_enabled"] = str(tg.getboolean("enabled"))
             diag_state.STATE["tg_token_present"] = str(bool(tg.get("token")))
             diag_state.STATE["tg_secret"] = str(tg.get("secretKey"))
-            diag_state.STATE["tg_alive"] = str(cardinal.telegram.is_alive() if hasattr(cardinal, "telegram") else "noattr")
+            diag_state.STATE["tg_alive"] = str(getattr(cardinal, "telegram_thread", None).is_alive() if getattr(cardinal, "telegram_thread", None) else "not_started")
         except Exception as e:
             diag_state.STATE["tg_diag_err"] = repr(e)
         try:

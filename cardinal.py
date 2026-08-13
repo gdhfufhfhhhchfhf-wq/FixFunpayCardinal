@@ -516,7 +516,8 @@ class Cardinal(object):
 
         if self.MAIN_CFG["Telegram"].getboolean("enabled"):
             self.telegram.setup_commands()
-            Thread(target=self.telegram.run, daemon=True).start()
+            self.telegram_thread = Thread(target=self.telegram.run, daemon=True)
+            self.telegram_thread.start()
 
         import diag_state
         diag_state.STATE["stage"] = "init:account"
