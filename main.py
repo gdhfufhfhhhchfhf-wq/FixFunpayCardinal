@@ -47,6 +47,26 @@ sys.excepthook = _record_exc
 threading.excepthook = lambda args: _record_exc(args.exc_type, args.exc_value, args.exc_traceback)
 
 
+# Инструментовка Runner.get_updates: пульс и ошибки поллинга сообщений в /diag
+import FunPayAPI.updater.runner as _fpc_runner_mod
+_orig_get_updates = _fpc_runner_mod.Runner.get_updates
+
+
+def _safe_get_updates(self, *args, **kwargs):
+    try:
+        result = _orig_get_updates(self, *args, **kwargs)
+        diag_state.STATE["runner_ok_at"] = time.strftime("%H:%M:%S")
+        diag_state.STATE["runner_err"] = ""
+        return result
+    except Exception as e:
+        diag_state.STATE["runner_err"] = f"{type(e).__name__}: {e}"
+        diag_state.STATE["runner_err_at"] = time.strftime("%H:%M:%S")
+        raise
+
+
+_fpc_runner_mod.Runner.get_updates = _safe_get_updates
+
+
 logo = "XDDDDDDDDDDDDDDDDDDDDDDD"
 
 
