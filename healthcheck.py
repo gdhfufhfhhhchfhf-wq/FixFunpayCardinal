@@ -43,7 +43,7 @@ def funpay_status() -> str:
 
 def cardinal_init_status() -> str:
     try:
-        with open(os.path.join(os.path.dirname(__file__), "storage", ".fp_init_status"), encoding="utf-8") as f:
+        with open(os.path.join(os.path.dirname(__file__), "fp_init_status"), encoding="utf-8") as f:
             return f.read()[:500]
     except Exception:
         return "unknown"

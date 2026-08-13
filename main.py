@@ -102,7 +102,7 @@ except:
 
 def _write_init_status(text: str) -> None:
     try:
-        with open("storage/.fp_init_status", "w", encoding="utf-8") as f:
+        with open("fp_init_status", "w", encoding="utf-8") as f:
             f.write(text)
     except Exception:
         pass
