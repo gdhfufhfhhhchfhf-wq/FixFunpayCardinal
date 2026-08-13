@@ -14,5 +14,8 @@ echo "[entrypoint] Копирую шаблоны правил из репо, е�
 cp -n /app/config_templates/auto_response.cfg /data/configs/auto_response.cfg 2>/dev/null || true
 cp -n /app/config_templates/auto_delivery.cfg /data/configs/auto_delivery.cfg 2>/dev/null || true
 
+echo "[entrypoint] Подбираю рабочий прокси из публичного списка..."
+python /app/pick_proxy.py || true
+
 echo "[entrypoint] Запускаю FunPay Cardinal..."
 exec python /app/main.py

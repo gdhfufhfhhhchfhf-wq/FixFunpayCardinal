@@ -114,12 +114,16 @@ class Cardinal(object):
             if self.MAIN_CFG["Proxy"]["ip"] and self.MAIN_CFG["Proxy"]["port"].isnumeric():
                 logger.info("Обнаружен прокси.")
 
-                ip, port = self.MAIN_CFG["Proxy"]["ip"], self.MAIN_CFG["Proxy"]["port"]
-                login, password = self.MAIN_CFG["Proxy"]["login"], self.MAIN_CFG["Proxy"]["password"]
-                self.proxy = {
-                    "http": f"http://{f'{login}:{password}@' if login and password else ''}{ip}:{port}",
-                    "https": f"http://{f'{login}:{password}@' if login and password else ''}{ip}:{port}"
-                }
+                ip = self.MAIN_CFG["Proxy"]["ip"].strip()
+                port = self.MAIN_CFG["Proxy"]["port"].strip()
+                login, password = self.MAIN_CFG["Proxy"]["login"].strip(), self.MAIN_CFG["Proxy"]["password"].strip()
+                auth = f"{login}:{password}@" if login and password else ""
+                if "://" in ip:
+                    scheme, host = ip.split("://", 1)
+                else:
+                    scheme, host = "http", ip
+                url = f"{scheme}://{auth}{host}:{port}"
+                self.proxy = {"http": url, "https": url}
                 if self.MAIN_CFG["Proxy"].getboolean("check"):
                     if not check_proxy(self.proxy):
                         sys.exit()
