@@ -67,6 +67,7 @@ class HealthHandler(BaseHTTPRequestHandler):
                 "tg_token_len": len(os.getenv("TELEGRAM_BOT_TOKEN", "")),
                 "tg_secret_len": len(os.getenv("TELEGRAM_SECRET_KEY", "")),
                 "proxy_set": bool(os.getenv("FUNPAY_PROXY") or os.getenv("HTTP_PROXY")),
+                "uptime_s": int(time.time() - diag_state.START_TIME),
             }
             last_error = state.get("last_error", "")
             body = ("funpay=%s env=%s diag=%s last_error=%s" % (funpay_status(), env_diag, state, last_error)).encode()

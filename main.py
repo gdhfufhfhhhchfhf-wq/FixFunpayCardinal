@@ -121,6 +121,20 @@ def _keep_alive_loop():
 threading.Thread(target=_keep_alive_loop, daemon=True, name="keep-alive").start()
 
 
+# Присутствие в FunPay: лёгкий авторизованный GET главной страницы каждые 2 минуты,
+# чтобы аккаунт показывался в FunPay как «в сети» и сессия не протухала.
+# Поллинг /runner/ FunPay за активность не считает.
+def _funpay_presence_loop(cardinal):
+    while True:
+        time.sleep(120)
+        try:
+            if cardinal.account and cardinal.account.phpsessid:
+                cardinal.account.session.get("https://funpay.com/", timeout=15)
+                diag_state.STATE["presence_at"] = time.strftime("%H:%M:%S")
+        except Exception:
+            pass
+
+
 print(logo)
 
 if not os.path.exists("configs/_main.cfg"):
@@ -169,6 +183,11 @@ while True:
             diag_state.STATE["runner_thread"] = "started"
         except Exception as e:
             diag_state.STATE["runner_thread"] = f"error: {e}"
+        try:
+            threading.Thread(target=_funpay_presence_loop, args=(cardinal,), daemon=True,
+                             name="funpay-presence").start()
+        except Exception as e:
+            diag_state.STATE["presence_thread"] = f"error: {e}"
         try:
             tg = cardinal.MAIN_CFG["Telegram"]
             diag_state.STATE["tg_enabled"] = str(tg.getboolean("enabled"))
