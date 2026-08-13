@@ -8,6 +8,9 @@ import colorama
 import sys
 import json
 import os
+import threading
+import time
+import urllib.request
 from cardinal import Cardinal
 from healthcheck import start_healthcheck
 import Utils.exceptions as excs
@@ -48,6 +51,22 @@ logger.debug("-------------------Новый запуск.-------------------")
 start_healthcheck()
 
 
+# Keep-alive: периодический запрос к собственному /health, чтобы сервис
+# не уходил в спячку при отсутствии внешнего трафика.
+def _keep_alive_loop():
+    port = int(os.getenv("PORT", "8080"))
+    url = "http://127.0.0.1:{0}/health".format(port)
+    while True:
+        time.sleep(300)
+        try:
+            urllib.request.urlopen(url, timeout=5)
+        except Exception:
+            pass
+
+
+threading.Thread(target=_keep_alive_loop, daemon=True, name="keep-alive").start()
+
+
 print(logo)
 
 if not os.path.exists("configs/_main.cfg"):
@@ -81,13 +100,13 @@ except:
     sys.exit()
 
 
-try:
-    Cardinal(MAIN_CFG, AD_CFG, AR_CFG, RAW_AR_CFG, VERSION).init().run()
-except KeyboardInterrupt:
-    logger.info("Завершаю программу...")
-    sys.exit()
-except:
-    logger.critical("При работе Кардинала произошла необработанная ошибка.")
-    logger.debug("TRACEBACK", exc_info=True)
-    logger.critical("Завершаю программу...")
-    sys.exit()
+while True:
+    try:
+        Cardinal(MAIN_CFG, AD_CFG, AR_CFG, RAW_AR_CFG, VERSION).init().run()
+    except KeyboardInterrupt:
+        logger.info("Завершаю программу...")
+        sys.exit()
+    except Exception:
+        logger.critical("При работе Кардинала произошла необработанная ошибка. Перезапускаю через 5 секунд...")
+        logger.debug("TRACEBACK", exc_info=True)
+        time.sleep(5)
