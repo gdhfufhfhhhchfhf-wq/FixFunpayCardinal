@@ -64,8 +64,8 @@ class HealthHandler(BaseHTTPRequestHandler):
                 state = {}
             env_diag = {
                 "gk_len": len(os.getenv("FUNPAY_GOLDEN_KEY", "")),
-                "tg_token_len": len(os.getenv("TG_BOT_TOKEN", "")),
-                "tg_secret_len": len(os.getenv("TG_SECRET_KEY", "")),
+                "tg_token_len": len(os.getenv("TELEGRAM_BOT_TOKEN", "")),
+                "tg_secret_len": len(os.getenv("TELEGRAM_SECRET_KEY", "")),
                 "proxy_set": bool(os.getenv("FUNPAY_PROXY") or os.getenv("HTTP_PROXY")),
             }
             last_error = state.get("last_error", "")

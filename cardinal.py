@@ -203,6 +203,7 @@ class Cardinal(object):
         """
         Инициализирует класс аккаунта (self.account)
         """
+        unauth_attempts = 0
         while True:
             try:
                 self.account.get()
@@ -212,7 +213,15 @@ class Cardinal(object):
                 break
             except TimeoutError:
                 logger.error("Не удалось загрузить данные об аккаунте: превышен тайм-аут ожидания.")
-            except (FunPayAPI.exceptions.UnauthorizedError, FunPayAPI.exceptions.RequestFailedError) as e:
+            except FunPayAPI.exceptions.UnauthorizedError as e:
+                unauth_attempts += 1
+                logger.error(e.short_str())
+                logger.debug(e)
+                # Невалидный golden_key сам не восстановится — перестаём молотить FunPay,
+                # поднимаем исключение выше (main.py перезапустит кардинал через паузу).
+                if unauth_attempts >= 2:
+                    raise
+            except FunPayAPI.exceptions.RequestFailedError as e:
                 logger.error(e.short_str())
                 logger.debug(e)
             except:

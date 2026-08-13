@@ -34,6 +34,16 @@ class TGBot:
 
         self.authorized_users = utils.load_authorized_users()
 
+        # Пре-авторизация из env: TELEGRAM_ALLOWED_IDS / TELEGRAM_ADMIN_IDS (через запятую).
+        # Нужно, чтобы админы сразу имели доступ к ПУ TG без ввода секретного ключа.
+        for var in ("TELEGRAM_ALLOWED_IDS", "TELEGRAM_ADMIN_IDS"):
+            for raw in os.environ.get(var, "").split(","):
+                raw = raw.strip()
+                if raw.isdigit() and int(raw) not in self.authorized_users:
+                    self.authorized_users.append(int(raw))
+        if self.authorized_users:
+            utils.save_authorized_users(self.authorized_users)
+
         # [(chat_id, message_id)]
         self.init_messages = []
 

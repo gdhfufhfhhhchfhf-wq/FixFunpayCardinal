@@ -103,15 +103,17 @@ start_healthcheck()
 diag_state.STATE["stage"] = "healthcheck_started"
 
 
-# Keep-alive: периодический запрос к собственному /health, чтобы сервис
-# не уходил в спячку при отсутствии внешнего трафика.
+# Keep-alive: периодический запрос к собственному публичному URL (RENDER_EXTERNAL_URL),
+# чтобы Render free не усыплял инстанс после 15 минут без внешнего трафика.
+# Локальные запросы к 127.0.0.1 внешним трафиком не считаются, поэтому нужен публичный адрес.
 def _keep_alive_loop():
     port = int(os.getenv("PORT", "8080"))
-    url = "http://127.0.0.1:{0}/health".format(port)
+    public = os.getenv("RENDER_EXTERNAL_URL")
+    url = (public.rstrip("/") + "/health") if public else "http://127.0.0.1:{0}/health".format(port)
     while True:
-        time.sleep(300)
+        time.sleep(240)
         try:
-            urllib.request.urlopen(url, timeout=5)
+            urllib.request.urlopen(url, timeout=20)
         except Exception:
             pass
 
@@ -191,6 +193,6 @@ while True:
     except Exception:
         diag_state.STATE["stage"] = "cardinal_exception"
         diag_state.STATE["cardinal_init"] = "error:" + repr(__import__("traceback").format_exc())
-        logger.critical("При работе Кардинала произошла необработанная ошибка. Перезапускаю через 5 секунд...")
+        logger.critical("При работе Кардинала произошла необработанная ошибка. Перезапускаю через 30 секунд...")
         logger.debug("TRACEBACK", exc_info=True)
-        time.sleep(5)
+        time.sleep(30)
