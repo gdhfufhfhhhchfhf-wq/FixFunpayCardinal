@@ -156,6 +156,7 @@ while True:
             diag_state.STATE["autoresp"] = str(fp.getboolean("autoResponse"))
             diag_state.STATE["autodeliv"] = str(fp.getboolean("autoDelivery"))
             diag_state.STATE["raise_cats"] = str(fp.get("autoRaiseCategoryIds", fallback=""))
+            diag_state.STATE["ar_commands"] = str(sorted(AR_CFG.sections()))
         except Exception as e:
             diag_state.STATE["fp_diag_err"] = repr(e)
         cardinal.run()
