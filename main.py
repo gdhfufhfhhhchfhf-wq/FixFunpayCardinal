@@ -147,9 +147,17 @@ while True:
             diag_state.STATE["tg_enabled"] = str(tg.getboolean("enabled"))
             diag_state.STATE["tg_token_present"] = str(bool(tg.get("token")))
             diag_state.STATE["tg_secret"] = str(tg.get("secretKey"))
-            diag_state.STATE["tg_alive"] = str(cardinal.telegram.is_alive() if hasattr(cardinal, "telegram") else "noattr")
-        except Exception as e:
-            diag_state.STATE["tg_diag_err"] = repr(e)
+        diag_state.STATE["tg_alive"] = str(cardinal.telegram.is_alive() if hasattr(cardinal, "telegram") else "noattr")
+    except Exception as e:
+        diag_state.STATE["tg_diag_err"] = repr(e)
+    try:
+        fp = cardinal.MAIN_CFG["FunPay"]
+        diag_state.STATE["autoraise"] = str(fp.getboolean("autoRaise"))
+        diag_state.STATE["autoresp"] = str(fp.getboolean("autoResponse"))
+        diag_state.STATE["autodeliv"] = str(fp.getboolean("autoDelivery"))
+        diag_state.STATE["raise_cats"] = str(fp.get("autoRaiseCategoryIds", fallback=""))
+    except Exception as e:
+        diag_state.STATE["fp_diag_err"] = repr(e)
         cardinal.run()
     except KeyboardInterrupt:
         logger.info("Завершаю программу...")
