@@ -142,14 +142,14 @@ while True:
         cardinal.init()
         diag_state.STATE["stage"] = "after_cardinal_init"
         diag_state.STATE["cardinal_init"] = "ok"
-    try:
-        tg = cardinal.MAIN_CFG["Telegram"]
-        diag_state.STATE["tg_enabled"] = str(tg.getboolean("enabled"))
-        diag_state.STATE["tg_token_present"] = str(bool(tg.get("token")))
-        diag_state.STATE["tg_secret"] = str(tg.get("secretKey"))
-        diag_state.STATE["tg_alive"] = str(cardinal.telegram.is_alive() if hasattr(cardinal, "telegram") else "noattr")
-    except Exception as e:
-        diag_state.STATE["tg_diag_err"] = repr(e)
+        try:
+            tg = cardinal.MAIN_CFG["Telegram"]
+            diag_state.STATE["tg_enabled"] = str(tg.getboolean("enabled"))
+            diag_state.STATE["tg_token_present"] = str(bool(tg.get("token")))
+            diag_state.STATE["tg_secret"] = str(tg.get("secretKey"))
+            diag_state.STATE["tg_alive"] = str(cardinal.telegram.is_alive() if hasattr(cardinal, "telegram") else "noattr")
+        except Exception as e:
+            diag_state.STATE["tg_diag_err"] = repr(e)
         cardinal.run()
     except KeyboardInterrupt:
         logger.info("Завершаю программу...")
