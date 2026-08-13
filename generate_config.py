@@ -123,6 +123,11 @@ def build_config() -> ConfigParser:
     config.set("Telegram", "token", token)
     config.set("Telegram", "secretKey", env_get("TELEGRAM_SECRET_KEY", default="funpay"))
 
+    config.set("Greetings", "sendGreetings", env_get("FUNPAY_GREETINGS", default="0"))
+    config.set("Greetings", "greetingsText", env_get("FUNPAY_GREETINGS_TEXT",
+                                                     default=DEFAULT_CONFIG["Greetings"]["greetingsText"]))
+    config.set("OrderConfirm", "sendReply", env_get("FUNPAY_ORDER_CONFIRM_REPLY", default="1"))
+
     config.set("Proxy", "enable", env_get("PROXY_ENABLE", default="0"))
     config.set("Proxy", "ip", env_get("PROXY_IP"))
     config.set("Proxy", "port", env_get("PROXY_PORT"))
