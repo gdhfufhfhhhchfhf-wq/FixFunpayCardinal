@@ -102,6 +102,8 @@ class Account:
         """Валюта аккаунта"""
         self.total_balance: int | None = None
         """Примерный общий баланс аккаунта в валюте аккаунта."""
+        self.balance: int = 0
+        """Алиас к total_balance для совместимости с cardinal_tools."""
         self.csrf_token: str | None = None
         """CSRF токен."""
         self.phpsessid: str | None = None
@@ -279,6 +281,7 @@ class Account:
             self.currency = parse_currency(currency)
         else:
             self.total_balance = 0
+        self.balance = self.total_balance
         active_purchases = parser.find("span", {"class": "badge badge-orders"})
         self.active_purchases = int(active_purchases.text) if active_purchases else 0
 
