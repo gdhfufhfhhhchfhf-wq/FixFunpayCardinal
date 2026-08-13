@@ -19,3 +19,6 @@ __pycache__/
 *.swp
 .DS_Store
 Thumbs.db
+local_run.out
+local_run.err
+
