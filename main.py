@@ -50,6 +50,7 @@ logger.debug("-------------------Новый запуск.-------------------")
 
 # Healthcheck-сервер (для Render / Railway / Docker). Порт из env PORT.
 start_healthcheck()
+diag_state.STATE["stage"] = "healthcheck_started"
 
 
 # Keep-alive: периодический запрос к собственному /health, чтобы сервис
@@ -101,16 +102,21 @@ except:
     sys.exit()
 
 
+diag_state.STATE["stage"] = "config_loaded"
+
 while True:
     try:
+        diag_state.STATE["stage"] = "before_cardinal_init"
         cardinal = Cardinal(MAIN_CFG, AD_CFG, AR_CFG, RAW_AR_CFG, VERSION)
         cardinal.init()
+        diag_state.STATE["stage"] = "after_cardinal_init"
         diag_state.STATE["cardinal_init"] = "ok"
         cardinal.run()
     except KeyboardInterrupt:
         logger.info("Завершаю программу...")
         sys.exit()
     except Exception:
+        diag_state.STATE["stage"] = "cardinal_exception"
         diag_state.STATE["cardinal_init"] = "error:" + repr(__import__("traceback").format_exc())
         logger.critical("При работе Кардинала произошла необработанная ошибка. Перезапускаю через 5 секунд...")
         logger.debug("TRACEBACK", exc_info=True)

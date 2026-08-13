@@ -57,7 +57,11 @@ class HealthHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"OK")
         elif self.path == "/diag":
-            body = ("funpay=%s cardinal_init=%s" % (funpay_status(), cardinal_init_status())).encode()
+            try:
+                state = dict(diag_state.STATE)
+            except Exception:
+                state = {}
+            body = ("funpay=%s diag=%s" % (funpay_status(), state)).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/plain")
             self.end_headers()
