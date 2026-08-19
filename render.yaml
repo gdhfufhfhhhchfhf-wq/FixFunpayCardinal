@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: funpay-cardinal
+    runtime: docker
+    dockerfilePath: Dockerfile
+    autoDeploy: true
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: FUNPAY_GOLDEN_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_SECRET_KEY
+        value: funpay
+      - key: FUNPAY_AUTO_RAISE
+        value: "1"
+      - key: FUNPAY_AUTO_RESPONSE
+        value: "1"
+      - key: FUNPAY_AUTO_DELIVERY
+        value: "1"
+      - key: FUNPAY_MULTI_DELIVERY
+        value: "1"
+      - key: FUNPAY_AUTO_RESTORE
+        value: "1"
+      - key: FUNPAY_REQUESTS_DELAY
+        value: "4"
