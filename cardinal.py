@@ -204,6 +204,7 @@ class Cardinal(object):
         Инициализирует класс аккаунта (self.account)
         """
         unauth_attempts = 0
+        sleep_between = 2
         while True:
             try:
                 self.account.get()
@@ -217,18 +218,23 @@ class Cardinal(object):
                 unauth_attempts += 1
                 logger.error(e.short_str())
                 logger.debug(e)
-                # Невалидный golden_key сам не восстановится — перестаём молотить FunPay,
-                # поднимаем исключение выше (main.py перезапустит кардинал через паузу).
-                if unauth_attempts >= 2:
-                    raise
+                # Бот (Telegram) уже запущен и продолжит работать, даже если FunPay
+                # временно не авторизует ключ (лимит/отзыв). Не роняем весь процесс:
+                # просто аккуратно ретраим и ждём, пока ключ снова заработает.
+                if unauth_attempts == 2:
+                    logger.error("$RED Аккаунт FunPay не авторизуется по golden_key из configs/_main.cfg.$RESET\n"
+                                 "        Проверьте ключ: https://funpay.com/account/settings (раздел «Ключ доступа»).")
+                sleep_between = max(sleep_between, 60)
             except FunPayAPI.exceptions.RequestFailedError as e:
                 logger.error(e.short_str())
                 logger.debug(e)
+                sleep_between = 2
             except:
                 logger.error("Произошла непредвиденная ошибка при получении данных аккаунта.")
                 logger.debug("TRACEBACK", exc_info=True)
-            logger.warning("Повторю попытку через 2 секунды...")
-            time.sleep(2)
+                sleep_between = 2
+            logger.warning(f"Повторю попытку через {sleep_between} секунд...")
+            time.sleep(sleep_between)
 
     def __update_profile(self, infinite_polling: bool = True, attempts: int = 0, update_telegram_profile: bool = True,
                          update_main_profile: bool = True) -> bool:

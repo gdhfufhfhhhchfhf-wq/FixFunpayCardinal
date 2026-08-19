@@ -30,7 +30,7 @@ class TGBot:
     def __init__(self, cardinal: Cardinal):
         self.cardinal = cardinal
         self.bot = telebot.TeleBot(self.cardinal.MAIN_CFG["Telegram"]["token"], parse_mode="HTML",
-                                   allow_sending_without_reply=True, num_threads=5)
+                                   allow_sending_without_reply=True)
 
         self.authorized_users = utils.load_authorized_users()
 
