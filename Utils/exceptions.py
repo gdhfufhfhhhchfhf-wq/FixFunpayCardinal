@@ -1,6 +1,9 @@
 """
 В данном модуле описаны все кастомные исключения, которые райзятся при валидации конфигов.
 """
+from locales.localizer import Localizer
+localizer = Localizer()
+_ = localizer.translate
 
 
 class ParamNotFoundError(Exception):
@@ -14,7 +17,7 @@ class ParamNotFoundError(Exception):
         self.param_name = param_name
 
     def __str__(self):
-        return f"Параметр \"{self.param_name}\" не найден."
+        return _("exc_param_not_found", self.param_name)
 
 
 class EmptyValueError(Exception):
@@ -28,7 +31,7 @@ class EmptyValueError(Exception):
         self.param_name = param_name
 
     def __str__(self):
-        return f"Значение параметра \"{self.param_name}\" не может быть пустым."
+        return _("exc_param_cant_be_empty", self.param_name)
 
 
 class ValueNotValidError(Exception):
@@ -46,49 +49,47 @@ class ValueNotValidError(Exception):
         self.valid_values = valid_values
 
     def __str__(self):
-        return f"Недопустимое значение параметра \"{self.param_name}\". Допустимые значения: {self.valid_values}. " \
-               f"Текущее значение: \"{self.current_value}\"."
+        return _("exc_param_value_invalid", self.param_name, self.valid_values, self.current_value)
 
 
 class ProductsFileNotFoundError(Exception):
     """
     Исключение, которое райзится, если при обработке конфига автовыдачи не был найден указанный файл с товарами.
     """
-    def __init__(self, products_file_path: str):
-        self.products_file_path = products_file_path
+    def __init__(self, goods_file_path: str):
+        self.goods_file_path = goods_file_path
 
     def __str__(self):
-        return f"Указанный файл с товарами {self.products_file_path} не найден."
+        return _("exc_goods_file_not_found", self.goods_file_path)
 
 
 class NoProductsError(Exception):
     """
     Исключение, которое райзится, если в товарном файле, указанном в конфиге автовыдачи, нет товаров.
     """
-    def __init__(self, products_file_path: str):
-        self.products_file_path = products_file_path
+    def __init__(self, goods_file_path: str):
+        self.goods_file_path = goods_file_path
 
     def __str__(self):
-        return f"В файле {self.products_file_path} отсутствуют товары."
+        return _("exc_goods_file_is_empty", self.goods_file_path)
 
 
 class NotEnoughProductsError(Exception):
     """
     Исключение, которое райзится, если запрошено больше товаров, чем есть в товарном файле.
     """
-    def __init__(self, products_file_path: str, products_amount: int, request_amount: int):
+    def __init__(self, goods_file_path: str, available: int, requested: int):
         """
-        :param products_file_path: путь до товарного файла.
-        :param products_amount: кол-во товаров в файле.
-        :param request_amount: кол-во запрошенного товара.
+        :param goods_file_path: путь до товарного файла.
+        :param available: кол-во товаров в файле.
+        :param requested: кол-во запрошенного товара.
         """
-        self.products_file_path = products_file_path
-        self.products_amount = products_amount
-        self.request_amount = request_amount
+        self.goods_file_path = goods_file_path
+        self.available = available
+        self.requested = requested
 
     def __str__(self):
-        return f"В файле {self.products_file_path} недостаточно товаров. Запрошено {self.request_amount}, " \
-               f"в наличии {self.products_amount}."
+        return _("exc_not_enough_items", self.goods_file_path, self.requested, self.available)
 
 
 class NoProductVarError(Exception):
@@ -100,7 +101,7 @@ class NoProductVarError(Exception):
         pass
 
     def __str__(self):
-        return "Указан \"productsFileName\", но в параметре \"response\" отсутствует переменная $product."
+        return _("exc_no_product_var")
 
 
 class SectionNotFoundError(Exception):
@@ -111,7 +112,7 @@ class SectionNotFoundError(Exception):
         pass
 
     def __str__(self):
-        return f"Секция отсутствует."
+        return _("exc_no_section")
 
 
 class SubCommandAlreadyExists(Exception):
@@ -122,7 +123,7 @@ class SubCommandAlreadyExists(Exception):
         self.command = command
 
     def __str__(self):
-        return f"Команда или суб-команда \"{self.command}\" уже существует."
+        return _("exc_cmd_duplicate", self.command)
 
 
 class DuplicateSectionErrorWrapper(Exception):
@@ -133,7 +134,7 @@ class DuplicateSectionErrorWrapper(Exception):
         pass
 
     def __str__(self):
-        return f"Обнаружен дубликат секции."
+        return _("exc_section_duplicate")
 
 
 class ConfigParseError(Exception):
@@ -146,7 +147,7 @@ class ConfigParseError(Exception):
         self.exception = exception
 
     def __str__(self):
-        return f"Ошибка в конфиге {self.config_path}, в секции [{self.section_name}]: {self.exception}"
+        return _("exc_cfg_parse_err", self.config_path, self.section_name, self.exception)
 
 
 class FieldNotExistsError(Exception):
@@ -158,5 +159,4 @@ class FieldNotExistsError(Exception):
         self.plugin_file_name = plugin_file_name
 
     def __str__(self):
-        return f"Не удалось загрузить плагин {self.plugin_file_name}: отсутствует обязательное поле " \
-               f"\"{self.field_name}\"."
+        return _("exc_plugin_field_not_found", self.plugin_file_name, self.field_name)

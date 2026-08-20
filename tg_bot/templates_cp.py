@@ -2,27 +2,32 @@
 В данном модуле описаны функции для ПУ шаблонами ответа.
 Модуль реализован в виде плагина.
 """
-
 from __future__ import annotations
 from typing import TYPE_CHECKING
+
+from Utils.cardinal_tools import safe_text
+
 if TYPE_CHECKING:
     from cardinal import Cardinal
 
 from tg_bot import utils, keyboards, CBT
 from tg_bot.static_keyboards import CLEAR_STATE_BTN
 
-from telebot.types import InlineKeyboardButton as Button
-from telebot import types
+from telebot.types import InlineKeyboardMarkup as K, InlineKeyboardButton as B, Message, CallbackQuery
 import logging
 
+from locales.localizer import Localizer
+
 logger = logging.getLogger("TGBot")
+localizer = Localizer()
+_ = localizer.translate
 
 
 def init_templates_cp(cardinal: Cardinal, *args):
     tg = cardinal.telegram
     bot = tg.bot
 
-    def check_template_exists(template_index: int, message_obj: types.Message) -> bool:
+    def check_template_exists(template_index: int, message_obj: Message) -> bool:
         """
         Проверяет, существует ли шаблон с переданным индексом.
         Если шаблон не существует - отправляет сообщение с кнопкой обновления списка шаблонов.
@@ -33,36 +38,32 @@ def init_templates_cp(cardinal: Cardinal, *args):
         :return: True, если команда существует, False, если нет.
         """
         if template_index > len(cardinal.telegram.answer_templates) - 1:
-            update_button = types.InlineKeyboardMarkup().add(Button("🔄 Обновить",
-                                                                    callback_data=f"{CBT.TMPLT_LIST}:0"))
-            bot.edit_message_text(f"❌ Не удалось обнаружить заготовку с индексом <code>{template_index}</code>.",
-                                  message_obj.chat.id, message_obj.id,
+            update_button = K().add(B(_("gl_refresh"), callback_data=f"{CBT.TMPLT_LIST}:0"))
+            bot.edit_message_text(_("tmplt_not_found_err", template_index), message_obj.chat.id, message_obj.id,
                                   reply_markup=update_button)
             return False
         return True
 
-    def open_templates_list(c: types.CallbackQuery):
+    def open_templates_list(c: CallbackQuery):
         """
         Открывает список существующих шаблонов ответов.
         """
         offset = int(c.data.split(":")[1])
-        bot.edit_message_text(f"Здесь вы можете добавлять и удалять заготовки для ответа.",
-                              c.message.chat.id, c.message.id,
+        bot.edit_message_text(_("desc_tmplt"), c.message.chat.id, c.message.id,
                               reply_markup=keyboards.templates_list(cardinal, offset))
         bot.answer_callback_query(c.id)
 
-    def open_templates_list_in_ans_mode(c: types.CallbackQuery):
+    def open_templates_list_in_ans_mode(c: CallbackQuery):
         """
         Открывает список существующих шаблонов ответов (answer_mode).
         """
         split = c.data.split(":")
         offset, node_id, username, prev_page, extra = int(split[1]), int(split[2]), split[3], int(split[4]), split[5:]
         bot.edit_message_reply_markup(c.message.chat.id, c.message.id,
-                                      reply_markup=keyboards.templates_list_ans_mode(cardinal,
-                                                                                     offset, node_id, username,
-                                                                                     prev_page, extra))
+                                      reply_markup=keyboards.templates_list_ans_mode(cardinal, offset, node_id,
+                                                                                     username, prev_page, extra))
 
-    def open_edit_template_cp(c: types.CallbackQuery):
+    def open_edit_template_cp(c: CallbackQuery):
         split = c.data.split(":")
         template_index, offset = int(split[1]), int(split[2])
         if not check_template_exists(template_index, c.message):
@@ -76,65 +77,59 @@ def init_templates_cp(cardinal: Cardinal, *args):
         bot.edit_message_text(message, c.message.chat.id, c.message.id, reply_markup=keyboard)
         bot.answer_callback_query(c.id)
 
-    def act_add_template(c: types.CallbackQuery):
+    def act_add_template(c: CallbackQuery):
         """
         Активирует режим добавления нового шаблона ответа.
         """
         offset = int(c.data.split(":")[1])
-        result = bot.send_message(c.message.chat.id,
-                                  "Введите новый шаблон ответа.\n\nСписок переменных:\n<code>$username</code> "
-                                  "- <i>никнейм написавшего пользователя.</i>"
-                                  "\n<code>$photo=PHOTO ID</code> - фотография (вместо <code>PHOTO ID</code> "
-                                  "впишите ID фотографии, полученный с помощью команды /upload_img)",
-                                  reply_markup=CLEAR_STATE_BTN)
-        tg.set_user_state(c.message.chat.id, result.id, c.from_user.id, CBT.ADD_TMPLT, {"offset": offset})
+        variables = ["v_username", "v_photo", "v_sleep"]
+        text = f"{_('V_new_template')}\n\n{_('v_list')}:\n" + "\n".join(_(i) for i in variables)
+        result = bot.send_message(c.message.chat.id, text, reply_markup=CLEAR_STATE_BTN())
+        tg.set_state(c.message.chat.id, result.id, c.from_user.id, CBT.ADD_TMPLT, {"offset": offset})
         bot.answer_callback_query(c.id)
 
-    def add_template(m: types.Message):
-        offset = tg.get_user_state(m.chat.id, m.from_user.id)["data"]["offset"]
+    def add_template(m: Message):
+        offset = tg.get_state(m.chat.id, m.from_user.id)["data"]["offset"]
         tg.clear_state(m.chat.id, m.from_user.id, True)
         template = m.text.strip()
 
         if template in tg.answer_templates:
-            error_keyboard = types.InlineKeyboardMarkup() \
-                .row(Button("◀️ Назад", callback_data=f"{CBT.TMPLT_LIST}:{offset}"),
-                     Button("➕ Добавить другую", callback_data=f"{CBT.ADD_TMPLT}:{offset}"))
-            bot.reply_to(m, f"❌ Такая заготовка уже существует.",
-                         reply_markup=error_keyboard)
+            error_keyboard = K().row(B(_("gl_back"), callback_data=f"{CBT.TMPLT_LIST}:{offset}"),
+                                     B(_("tmplt_add_another"), callback_data=f"{CBT.ADD_TMPLT}:{offset}"))
+            bot.reply_to(m, _("tmplt_already_exists_err"), reply_markup=error_keyboard)
             return
 
         tg.answer_templates.append(template)
         utils.save_answer_templates(tg.answer_templates)
+        logger.info(_("log_tmplt_added", m.from_user.username, m.from_user.id, template))
 
-        keyboard = types.InlineKeyboardMarkup() \
-            .row(Button("◀️ Назад", callback_data=f"{CBT.TMPLT_LIST}:{offset}"),
-                 Button("➕ Добавить еще", callback_data=f"{CBT.ADD_TMPLT}:{offset}"))
+        keyboard = K().row(B(_("gl_back"), callback_data=f"{CBT.TMPLT_LIST}:{offset}"),
+                           B(_("tmplt_add_more"), callback_data=f"{CBT.ADD_TMPLT}:{offset}"))
+        bot.reply_to(m, _("tmplt_added"), reply_markup=keyboard)
 
-        bot.reply_to(m, f"✅ Добавлена заготовка.",
-                     reply_markup=keyboard)
-
-    def del_template(c: types.CallbackQuery):
+    def del_template(c: CallbackQuery):
         split = c.data.split(":")
         template_index, offset = int(split[1]), int(split[2])
         if not check_template_exists(template_index, c.message):
             bot.answer_callback_query(c.id)
             return
 
+        template = tg.answer_templates[template_index]
         tg.answer_templates.pop(template_index)
         utils.save_answer_templates(tg.answer_templates)
-        bot.edit_message_text(f"Здесь вы можете добавлять и удалять заготовки для ответа.",
-                              c.message.chat.id, c.message.id,
+        logger.info(_("log_tmplt_deleted", c.from_user.username, c.from_user.id, template))
+        bot.edit_message_text(_("desc_tmplt"), c.message.chat.id, c.message.id,
                               reply_markup=keyboards.templates_list(cardinal, offset))
         bot.answer_callback_query(c.id)
 
-    def send_template(c: types.CallbackQuery):
+    def send_template(c: CallbackQuery):
         split = c.data.split(":")
         template_index, node_id, username, prev_page, extra = (int(split[1]), int(split[2]), split[3], int(split[4]),
                                                                split[5:])
 
         if template_index > len(tg.answer_templates) - 1:
-            bot.send_message(c.message.chat.id,
-                             f"❌ Не удалось обнаружить заготовку с индексом <code>{template_index}</code>.")
+            bot.send_message(c.message.chat.id, _("tmplt_not_found_err", template_index),
+                             message_thread_id=c.message.message_thread_id)
             if prev_page == 0:
                 bot.edit_message_reply_markup(c.message.chat.id, c.message.id,
                                               reply_markup=keyboards.reply(node_id, username))
@@ -148,18 +143,18 @@ def init_templates_cp(cardinal: Cardinal, *args):
             bot.answer_callback_query(c.id)
             return
 
-        text = tg.answer_templates[template_index].replace("$username", username)
-        result = cardinal.send_message(node_id, text, username)
-        if result:
-            bot.send_message(c.message.chat.id, f'✅ Сообщение отправлено в переписку '
-                                                f'<a href="https://funpay.com/chat/?node={node_id}">{username}</a>.'
-                                                f'\n\n<code>{utils.escape(text)}</code>',
-                             reply_markup=keyboards.reply(node_id, username, again=True))
+        text = tg.answer_templates[template_index].replace("$username", safe_text(username))
+        result = cardinal.send_message(node_id, text, username, watermark=False)
+
+        if prev_page == 3:
+            bot.answer_callback_query(c.id, _("msg_sent_short") if result else _("msg_sending_error_short"))
+            return
         else:
-            bot.send_message(c.message.chat.id, f'❌ Не удалось отправить сообщение в переписку '
-                                                f'<a href="https://funpay.com/chat/?node={node_id}">{username}</a>. '
-                                                f'Подробнее в файле <code>logs/log.log</code>',
-                             reply_markup=keyboards.reply(node_id, username, again=True))
+            msg_text = _("tmplt_msg_sent", node_id, username, utils.escape(text)) if result else \
+                _("msg_sending_error", node_id, username)
+            bot.send_message(c.message.chat.id, msg_text,
+                             reply_markup=keyboards.reply(node_id, username, again=True, extend=True),
+                             message_thread_id=c.message.message_thread_id)
         bot.answer_callback_query(c.id)
 
     tg.cbq_handler(open_templates_list, lambda c: c.data.startswith(f"{CBT.TMPLT_LIST}:"))

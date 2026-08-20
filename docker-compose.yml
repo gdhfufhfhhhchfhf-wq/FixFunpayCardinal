@@ -1,22 +1,12 @@
 services:
-  funpay-cardinal:
+  funpaycardinal:
     build: .
-    image: funpay-cardinal:latest
+    container_name: funpaycardinal
     restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      - PORT=8080
-    ports:
-      - "8080:8080"
+    stdin_open: true
+    tty: true
     volumes:
-      - funpay_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
-      interval: 30s
-      timeout: 10s
-      start_period: 60s
-      retries: 3
-
-volumes:
-  funpay_data:
+      - ./configs:/app/configs
+      - ./logs:/app/logs
+      - ./storage:/app/storage
+      - ./plugins:/app/plugins

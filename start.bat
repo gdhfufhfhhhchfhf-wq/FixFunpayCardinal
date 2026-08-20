@@ -1,2 +1,1 @@
-py main.py
-pause
+start python main.py

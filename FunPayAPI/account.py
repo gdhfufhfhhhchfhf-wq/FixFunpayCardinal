@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import html
-import math
 from typing import TYPE_CHECKING, Literal, Any, Optional, IO
 
 import FunPayAPI.common.enums
-from FunPayAPI.common.utils import parse_currency, RegularExpressions
+from FunPayAPI.common.utils import parse_currency, RegularExpressions, strip_invisible_suffix
 from .types import PaymentMethod, CalcResult
 
 if TYPE_CHECKING:
@@ -102,8 +101,6 @@ class Account:
         """Валюта аккаунта"""
         self.total_balance: int | None = None
         """Примерный общий баланс аккаунта в валюте аккаунта."""
-        self.balance: int = 0
-        """Алиас к total_balance для совместимости с cardinal_tools."""
         self.csrf_token: str | None = None
         """CSRF токен."""
         self.phpsessid: str | None = None
@@ -155,7 +152,7 @@ class Account:
 
 
     def method(self, request_method: Literal["post", "get"], api_method: str, headers: dict, payload: Any,
-               exclude_phpsessid: bool = False, exclude_golden_key: bool = False, raise_not_200: bool = False,
+               exclude_phpsessid: bool = False, raise_not_200: bool = False,
                locale: Literal["ru", "en", "uk"] | None = None) -> requests.Response:
         """
         Отправляет запрос к FunPay. Добавляет в заголовки запроса user_agent и куки.
@@ -196,10 +193,8 @@ class Account:
                 cookies["PHPSESSID"] = self.phpsessid
             link = self.normalize_url(api_method, locale)
         else:
-            cookies = {}
-            if not exclude_golden_key:
-                cookies["golden_key"] = self.golden_key
-            cookies["cookie_prefs"] = "1"
+            cookies = {"golden_key": self.golden_key,
+                       "cookie_prefs": "1"}
             cookies.update(self.cookies)
             if self.phpsessid and not exclude_phpsessid:
                 cookies["PHPSESSID"] = self.phpsessid
@@ -222,13 +217,16 @@ class Account:
                   "cookies": cookies}
         i = 0
         response = None
-        while i < 10:
+        while i < 10 or response.status_code == 429:
             i += 1
             response = self.session.request(url=link, data=payload, allow_redirects=False, **kwargs)
             self.__update_cookies(response)
             if response.status_code == 429:
                 self.last_429_err_time = time.time()
-                time.sleep(min(2 ** i, 30))
+                wait = min(2 ** i, 30)
+                logger.warning(f"Получен код $YELLOW429 (Too Many Requests)$RESET от FunPay "
+                               f"($YELLOW{link}$RESET). Попытка $YELLOW{i}$RESET, жду $YELLOW{wait}$RESET сек.")
+                time.sleep(wait)
                 continue
             elif not (300 <= response.status_code < 400) or 'Location' not in response.headers:
                 break
@@ -283,7 +281,6 @@ class Account:
             self.currency = parse_currency(currency)
         else:
             self.total_balance = 0
-        self.balance = self.total_balance
         active_purchases = parser.find("span", {"class": "badge badge-orders"})
         self.active_purchases = int(active_purchases.text) if active_purchases else 0
 
@@ -316,7 +313,7 @@ class Account:
         payload["csrf_token"] = self.csrf_token
         payload["objects"] = json.dumps(payload.get("objects", []))
         payload["request"] = False if not payload.get("request") else json.dumps(payload["request"])
-        response = self.method("post", "runner/", headers, payload, raise_not_200=True, exclude_golden_key=True)
+        response = self.method("post", "runner/", headers, payload, raise_not_200=True)
 
         return response
 
@@ -486,7 +483,7 @@ class Account:
                 sellers[seller_key] = seller
             else:
                 seller = sellers[seller_key]
-            for i in ("online", "auto"):
+            for i in ("online", "auto", "user"):
                 if i in attributes:
                     del attributes[i]
 
@@ -1224,58 +1221,6 @@ class Account:
         else:
             raise exceptions.RaiseError(response, category, json_response.get("msg"), wait_time)
 
-    def raise_subcategories(self, category_id: int, subcategory_id: int) -> types.RaiseResponse:
-        """
-        Поднимает лоты одной подкатегории переданной категории (игры).
-
-        Возвращает объект :class:`FunPayAPI.types.RaiseResponse` с информацией о результате
-        поднятия. Не возбуждает исключений при обычном отказе FunPay (например, когда нужно
-        подождать) — эта информация помещается в поле ``wait`` результата.
-
-        :param category_id: ID категории (игры).
-        :type category_id: :obj:`int`
-
-        :param subcategory_id: ID подкатегории.
-        :type subcategory_id: :obj:`int`
-
-        :return: объект результата поднятия лотов.
-        :rtype: :class:`FunPayAPI.types.RaiseResponse`
-        """
-        if not self.is_initiated:
-            raise exceptions.AccountNotInitiatedError()
-        if not (category := self.get_category(category_id)):
-            raise Exception("Not Found")  # todo
-        if not (subcategory := category.get_subcategory(enums.SubCategoryTypes.COMMON, subcategory_id)):
-            raise Exception("Not Found")  # todo
-
-        headers = {
-            "accept": "*/*",
-            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "x-requested-with": "XMLHttpRequest"
-        }
-        payload = {
-            "game_id": category_id,
-            "node_id": subcategory_id
-        }
-
-        response = self.method("post", "lots/raise", headers, payload, raise_not_200=True)
-        json_response = response.json()
-        logger.debug(f"Ответ FunPay (поднятие подкатегорий): {json_response}.")  # locale
-        wait_time = json_response.get("wait")
-        raised_subcategories = [subcategory]
-
-        if not json_response.get("error") and not json_response.get("url"):
-            return types.RaiseResponse(True, raised_subcategories, wait_time or 3600, json_response)
-        elif json_response.get("url"):
-            return types.RaiseResponse(False, raised_subcategories, wait_time or 7200, json_response)
-        elif json_response.get("error") and json_response.get("msg") and \
-                any([i in json_response.get("msg") for i in ("Подождите ", "Please wait ", "Зачекайте ")]):
-            return types.RaiseResponse(False, raised_subcategories,
-                                       wait_time or utils.parse_wait_time(json_response.get("msg")),
-                                       json_response)
-        else:
-            return types.RaiseResponse(False, raised_subcategories, wait_time or 3600, json_response)
-
     def get_user(self, user_id: int, locale: Literal["ru", "en", "uk"] | None = None) -> types.UserProfile:
         """
         Парсит страницу пользователя.
@@ -1561,6 +1506,10 @@ class Account:
             if not username:
                 raise exceptions.UnauthorizedError(response)
 
+            header = parser.select_one("h1.page-header.page-header-no-hr")
+            if not header or header.text.strip().lower() not in ("мої продажі", "мои продажи", "my sales"):
+                raise exceptions.UnauthorizedError(response)
+
         next_order_id = parser.find("input", {"type": "hidden", "name": "continue"})
         next_order_id = next_order_id.get("value") if next_order_id else None
 
@@ -1677,7 +1626,10 @@ class Account:
 
         for msg in chats:
             chat_id = int(msg["data-id"])
-            last_msg_text = msg.find("div", {"class": "contact-item-message"}).text
+            # Если чат удален админами - скип (аналогично runner.py: parse_chat_updates).
+            if not (last_msg_text := msg.find("div", {"class": "contact-item-message"})):
+                continue
+            last_msg_text = last_msg_text.text
             unread = True if "unread" in msg.get("class") else False
             chat_with = msg.find("div", {"class": "media-user-name"}).text
             node_msg_id = int(msg.get('data-node-msg'))
@@ -1692,8 +1644,7 @@ class Account:
                 last_msg_text = last_msg_text[1:]
                 by_vertex = True
 
-            if last_msg_text.endswith(self.zero_width_suffix):
-                last_msg_text = last_msg_text[:-len(self.zero_width_suffix)]
+            last_msg_text = strip_invisible_suffix(last_msg_text)
 
             chat_obj = types.ChatShortcut(chat_id, chat_with, last_msg_text, node_msg_id, user_msg_id, unread, str(msg))
             if not is_image:
@@ -1808,12 +1759,15 @@ class Account:
         return CalcResult(subcategory_type, subcategory_id, methods, price, min_price, min_price_currency,
                           self.currency)
 
-    def get_lot_fields(self, lot_id: int) -> types.LotFields:
+    def get_lot_fields(self, lot_id: int = 0, node_id: int | None = None) -> types.LotFields:
         """
         Получает все поля лота.
 
         :param lot_id: ID лота.
         :type lot_id: :obj:`int`
+
+        :param node_id: ID подкатегории.
+        :type node_id: :obj:`int`
 
         :return: объект с полями лота.
         :rtype: :class:`FunPayAPI.types.LotFields`
@@ -1821,7 +1775,9 @@ class Account:
         if not self.is_initiated:
             raise exceptions.AccountNotInitiatedError()
         headers = {}
-        response = self.method("get", f"lots/offerEdit?offer={lot_id}", headers, {}, raise_not_200=True)
+        tail = (f"offer={lot_id}" if lot_id else "") + (f"&node={node_id}" if node_id else "")
+        tail = tail.lstrip("&")
+        response = self.method("get", f"lots/offerEdit?{tail}", headers, {}, raise_not_200=True)
 
         html_response = response.content.decode()
         bs = BeautifulSoup(html_response, "lxml")
@@ -1831,7 +1787,7 @@ class Account:
         bs = bs.find("form", class_="form-offer-editor")
         result = {}
         result.update(
-            {field["name"]: field.get("value") or "" for field in bs.find_all("input") if field["name"] != "query"})
+            {field["name"]: field.get("value") or "" for field in bs.find_all("input")})
         result.update({field["name"]: field.text or "" for field in bs.find_all("textarea")})
         result.update({
             field["name"]: field.find("option", selected=True)["value"]
@@ -2210,8 +2166,7 @@ class Account:
                 else:
                     message_text = parser.find("div", {"class": "chat-msg-text"}).text
 
-                if message_text.endswith(self.zero_width_suffix):
-                    message_text = message_text[:-len(self.zero_width_suffix)]
+                message_text = strip_invisible_suffix(message_text)
 
                 if message_text.startswith(self.__bot_character) or \
                         message_text.startswith(self.__old_bot_character) and author_id == self.id:

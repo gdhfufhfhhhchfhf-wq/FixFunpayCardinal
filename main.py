@@ -1,15 +1,34 @@
+import time
+from pip._internal.cli.main import main as pip_main
+
+try:
+    import lxml
+except ModuleNotFoundError:
+    pip_main(["install", "-U", "lxml>=5.3.0"])
+except:
+    pass
+try:
+    import bcrypt
+except ModuleNotFoundError:
+    pip_main(["install", "-U", "bcrypt>=4.2.0"])
+except:
+    pass
+try:
+    import socks
+except ModuleNotFoundError:
+    pip_main(["install", "-U", "pysocks>=1.7.1"])
+except:
+    pass
+import Utils.cardinal_tools
 import Utils.config_loader as cfg_loader
 from first_setup import first_setup
 from colorama import Fore, Style
-import Utils.logger
-from Utils.logger import LOGGER_CONFIG
-import logging.config
+from Utils.logger import configure_logging
+import logging
 import colorama
 import sys
-import json
 import os
 import threading
-import time
 import urllib.request
 import requests
 
@@ -31,6 +50,7 @@ from cardinal import Cardinal
 from healthcheck import start_healthcheck
 import diag_state
 import Utils.exceptions as excs
+from locales.localizer import Localizer
 import sys
 import threading
 import traceback
@@ -67,18 +87,18 @@ def _safe_get_updates(self, *args, **kwargs):
 _fpc_runner_mod.Runner.get_updates = _safe_get_updates
 
 
-logo = "XDDDDDDDDDDDDDDDDDDDDDDD"
+logo = "[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m[38;5;0m.[0m"
 
+VERSION = "0.1.17.13"
 
-VERSION = "0.0.8.8"
-
+Utils.cardinal_tools.set_console_title(f"FunPay Cardinal v{VERSION}")
 
 if getattr(sys, 'frozen', False):
     os.chdir(os.path.dirname(sys.executable))
 else:
     os.chdir(os.path.dirname(__file__))
 
-folders = ["configs", "logs", "storage", "storage/cache", "storage/plugins", "storage/products"]
+folders = ["configs", "logs", "storage", "storage/cache", "storage/plugins", "storage/products", "plugins"]
 for i in folders:
     if not os.path.exists(i):
         os.makedirs(i)
@@ -89,11 +109,9 @@ for i in files:
         with open(i, "w", encoding="utf-8") as f:
             ...
 
-
 colorama.init()
 
-
-logging.config.dictConfig(LOGGER_CONFIG)
+configure_logging()
 logging.raiseExceptions = False
 logger = logging.getLogger("main")
 logger.debug("-------------------Новый запуск.-------------------")
@@ -105,7 +123,6 @@ diag_state.STATE["stage"] = "healthcheck_started"
 
 # Keep-alive: периодический запрос к собственному публичному URL (RENDER_EXTERNAL_URL),
 # чтобы Render free не усыплял инстанс после 15 минут без внешнего трафика.
-# Локальные запросы к 127.0.0.1 внешним трафиком не считаются, поэтому нужен публичный адрес.
 def _keep_alive_loop():
     port = int(os.getenv("PORT", "8080"))
     public = os.getenv("RENDER_EXTERNAL_URL")
@@ -123,7 +140,6 @@ threading.Thread(target=_keep_alive_loop, daemon=True, name="keep-alive").start(
 
 # Присутствие в FunPay: лёгкий авторизованный GET главной страницы каждые 2 минуты,
 # чтобы аккаунт показывался в FunPay как «в сети» и сессия не протухала.
-# Поллинг /runner/ FunPay за активность не считает.
 def _funpay_presence_loop(cardinal):
     while True:
         time.sleep(120)
@@ -135,7 +151,9 @@ def _funpay_presence_loop(cardinal):
             pass
 
 
-print(logo)
+print(f"{Style.RESET_ALL}{logo}")
+print(f"{Fore.RED}{Style.BRIGHT}v{VERSION}{Style.RESET_ALL}\n")
+print(f"{Fore.MAGENTA}{Style.BRIGHT}By {Fore.BLUE}{Style.BRIGHT}Woopertail, @sidor0912{Style.RESET_ALL}")
 
 if not os.path.exists("configs/_main.cfg"):
     first_setup()
@@ -145,6 +163,8 @@ if not os.path.exists("configs/_main.cfg"):
 try:
     logger.info("$MAGENTAЗагружаю конфиг _main.cfg...")
     MAIN_CFG = cfg_loader.load_main_config("configs/_main.cfg")
+    localizer = Localizer(MAIN_CFG["Other"]["language"])
+    _ = localizer.translate
 
     logger.info("$MAGENTAЗагружаю конфиг auto_response.cfg...")
     AR_CFG = cfg_loader.load_auto_response_config("configs/auto_response.cfg")
@@ -163,10 +183,11 @@ except UnicodeDecodeError:
     sys.exit()
 except:
     logger.critical("Произошла непредвиденная ошибка.")
-    logger.debug("TRACEBACK", exc_info=True)
+    logger.warning("TRACEBACK", exc_info=True)
     logger.error("Завершаю программу...")
     sys.exit()
 
+localizer = Localizer(MAIN_CFG["Other"]["language"])
 
 diag_state.STATE["stage"] = "config_loaded"
 
@@ -178,11 +199,6 @@ while True:
         cardinal.init()
         diag_state.STATE["stage"] = "after_cardinal_init"
         diag_state.STATE["cardinal_init"] = "ok"
-        try:
-            threading.Thread(target=cardinal.runner.loop, daemon=True, name="runner-worker").start()
-            diag_state.STATE["runner_thread"] = "started"
-        except Exception as e:
-            diag_state.STATE["runner_thread"] = f"error: {e}"
         try:
             threading.Thread(target=_funpay_presence_loop, args=(cardinal,), daemon=True,
                              name="funpay-presence").start()
@@ -213,5 +229,5 @@ while True:
         diag_state.STATE["stage"] = "cardinal_exception"
         diag_state.STATE["cardinal_init"] = "error:" + repr(__import__("traceback").format_exc())
         logger.critical("При работе Кардинала произошла необработанная ошибка. Перезапускаю через 30 секунд...")
-        logger.debug("TRACEBACK", exc_info=True)
+        logger.warning("TRACEBACK", exc_info=True)
         time.sleep(30)

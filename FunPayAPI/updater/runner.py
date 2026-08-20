@@ -16,6 +16,7 @@ import logging
 from bs4 import BeautifulSoup
 
 from ..common import exceptions
+from ..common.utils import strip_invisible_suffix
 from .events import *
 
 logger = logging.getLogger("FunPayAPI.runner")
@@ -367,8 +368,7 @@ class Runner:
                 last_msg_text = last_msg_text[1:]
                 by_vertex = True
 
-            if last_msg_text.endswith(self.account.zero_width_suffix):
-                last_msg_text = last_msg_text[:-len(self.account.zero_width_suffix)]
+            last_msg_text = strip_invisible_suffix(last_msg_text)
 
             # если сообщение отправлено непрочитанным и вкл старый режим, то [0, 0, None] или [0, 0, "text"]
             prev_node_msg_id, prev_user_msg_id, prev_text = self.runner_last_messages.get(chat_id) or [-1, -1, None]
@@ -556,6 +556,11 @@ class Runner:
             logger.error("Не удалось обновить список продаж: превышено кол-во попыток.")
             return events
 
+        if self.saved_orders is not None and len(self.saved_orders) > len(orders_list) or len(orders_list) > 100:
+            logger.error(f"Что-то пошло не так при получении списка заказов.")
+            logger.debug(f"SAVED: {list(self.saved_orders.keys()) if self.saved_orders else self.saved_orders}")
+            logger.debug(f"ORDERS_LIST ({len(orders_list)}): {[i.id for i in orders_list]}")
+            return events
         now_orders = {}
         for order in orders_list:
             now_orders[order.id] = order
