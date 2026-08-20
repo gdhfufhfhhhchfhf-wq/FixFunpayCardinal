@@ -77,7 +77,7 @@ class TGBot:
             for raw in os.environ.get(var, "").split(","):
                 raw = raw.strip()
                 if raw.isdigit() and int(raw) not in self.authorized_users:
-                    self.authorized_users.append(int(raw))
+                    self.authorized_users[int(raw)] = {}
         if self.authorized_users:
             utils.save_authorized_users(self.authorized_users)
 
